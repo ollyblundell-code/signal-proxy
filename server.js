@@ -4,18 +4,23 @@ const https = require('https');
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(200);
+    res.writeHead(204);
     res.end();
     return;
   }
 
-  if (req.method !== 'POST' || req.url !== '/proxy') {
+  if (req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Signal proxy running');
+    return;
+  }
+
+  if (req.method !== 'POST') {
     res.writeHead(404);
     res.end(JSON.stringify({ error: { message: 'Not found' } }));
     return;
@@ -47,13 +52,16 @@ const server = http.createServer((req, res) => {
         let data = '';
         apiRes.on('data', chunk => data += chunk);
         apiRes.on('end', () => {
-          res.writeHead(apiRes.statusCode, { 'Content-Type': 'application/json' });
+          res.writeHead(apiRes.statusCode, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
           res.end(data);
         });
       });
 
       apiReq.on('error', (e) => {
-        res.writeHead(500);
+        res.writeHead(500, { 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ error: { message: e.message } }));
       });
 
@@ -61,7 +69,7 @@ const server = http.createServer((req, res) => {
       apiReq.end();
 
     } catch(e) {
-      res.writeHead(500);
+      res.writeHead(500, { 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({ error: { message: e.message } }));
     }
   });

@@ -3,11 +3,18 @@ const https = require('https');
 const url = require('url');
 
 const PORT = process.env.PORT || 3000;
-
 const SUPABASE_URL = 'https://emvmarolsmbxbimbyvbv.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdm1hcm9sc21ieGJpbWJ5dmJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMzk2NjUsImV4cCI6MjA5NjYxNTY2NX0.HRbAReRB6FLX6OrrL0m437di8Dve--lvVqiUVSXk28U';
 
-function proxyRequest(targetUrl, method, headers, body, res) {
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, PATCH, DELETE, OPTIONS'
+  };
+}
+
+function proxyHttps(targetUrl, method, headers, body, res) {
   const parsed = url.parse(targetUrl);
   const options = {
     hostname: parsed.hostname,
@@ -21,15 +28,15 @@ function proxyRequest(targetUrl, method, headers, body, res) {
     apiRes.on('data', chunk => data += chunk);
     apiRes.on('end', () => {
       res.writeHead(apiRes.statusCode, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        ...corsHeaders(),
+        'Content-Type': 'application/json'
       });
       res.end(data);
     });
   });
 
   apiReq.on('error', (e) => {
-    res.writeHead(500, { 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(500, corsHeaders());
     res.end(JSON.stringify({ error: { message: e.message } }));
   });
 
@@ -38,9 +45,7 @@ function proxyRequest(targetUrl, method, headers, body, res) {
 }
 
 const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, PATCH, DELETE, OPTIONS');
+  Object.entries(corsHeaders()).forEach(([k, v]) => res.setHeader(k, v));
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -50,7 +55,7 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Signal proxy running');
+    res.end('Signal proxy v2 running');
     return;
   }
 
@@ -58,7 +63,7 @@ const server = http.createServer((req, res) => {
   req.on('data', chunk => body += chunk);
   req.on('end', () => {
 
-    // ── Anthropic proxy ──────────────────────────────
+    // ── Anthropic API proxy (supports tools incl. web search) ──
     if (req.url === '/proxy') {
       try {
         const parsed = JSON.parse(body);
@@ -66,7 +71,7 @@ const server = http.createServer((req, res) => {
         delete parsed.apiKey;
         const payload = JSON.stringify(parsed);
 
-        proxyRequest(
+        proxyHttps(
           'https://api.anthropic.com/v1/messages',
           'POST',
           {
@@ -79,35 +84,34 @@ const server = http.createServer((req, res) => {
           res
         );
       } catch(e) {
-        res.writeHead(500, { 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(500, corsHeaders());
         res.end(JSON.stringify({ error: { message: e.message } }));
       }
       return;
     }
 
-    // ── Supabase proxy ───────────────────────────────
+    // ── Supabase proxy ──
     if (req.url.startsWith('/sb/')) {
       const sbPath = req.url.replace('/sb/', '');
-      const targetUrl = `${SUPABASE_URL}/rest/v1/${sbPath}`;
-      
+      const targetUrl = SUPABASE_URL + '/rest/v1/' + sbPath;
+
       const headers = {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON,
-        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Authorization': 'Bearer ' + SUPABASE_ANON,
         'Prefer': 'return=representation'
       };
-
       if (body) headers['Content-Length'] = Buffer.byteLength(body);
 
-      proxyRequest(targetUrl, req.method, headers, body || null, res);
+      proxyHttps(targetUrl, req.method, headers, body || null, res);
       return;
     }
 
-    res.writeHead(404);
-    res.end(JSON.stringify({ error: { message: 'Not found' } }));
+    res.writeHead(404, corsHeaders());
+    res.end(JSON.stringify({ error: { message: 'Not found: ' + req.url } }));
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`Signal proxy running on port ${PORT}`);
+  console.log('Signal proxy v2 running on port ' + PORT);
 });

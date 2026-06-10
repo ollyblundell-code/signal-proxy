@@ -42,8 +42,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 .nav-tab {
   padding: 0 18px; height: 52px; display: flex; align-items: center;
   font-size: 12px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
-  color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent;
-  transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none;
+  color: var(--text3); cursor: pointer; border: none; border-bottom: 2px solid transparent;
+  transition: all 0.15s; background: transparent; outline: none;
+  text-decoration: none; user-select: none;
 }
 .nav-tab:hover { color: var(--text2); }
 .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -56,7 +57,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 .api-indicator.connected { background: var(--green); }
 
 /* ── LAYOUT ── */
-.page { display: none; padding: 28px; max-width: 960px; margin: 0 auto; }
+.page { display: none; padding: 32px 40px; max-width: 1100px; margin: 0 auto; }
 .page.active { display: block; }
 
 /* ── CARDS ── */
@@ -145,8 +146,8 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
 .position-change { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
 
 /* ── PROCESS PAGE ── */
-.process-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 720px) { .process-layout { grid-template-columns: 1fr; } }
+.process-layout { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .process-layout { grid-template-columns: 1fr; } }
 
 .drop-zone {
   border: 2px dashed var(--border); border-radius: 10px;
@@ -174,7 +175,7 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
   font-family: 'JetBrains Mono', monospace;
 }
 
-.agent-cards { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
+.agent-cards { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-right: 4px; }
 .agent-card {
   border-radius: 8px; overflow: hidden;
   border: 1px solid transparent; transition: border-color 0.15s;
@@ -186,7 +187,7 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
 .agent-card-icon { font-size: 13px; }
 .agent-card-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; flex: 1; }
 .agent-card-status { font-size: 10px; font-family: 'JetBrains Mono', monospace; }
-.agent-card-body { padding: 12px 14px; border-top: 1px solid rgba(255,255,255,0.05); }
+.agent-card-body { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.05); overflow: visible; }
 .agent-loading { padding: 14px; font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
 
 /* ── UNIVERSE PAGE ── */
@@ -268,11 +269,11 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
 <nav class="nav">
   <div class="nav-logo">SIGNAL</div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('digest')">DIGEST</button>
-    <button class="nav-tab" onclick="showPage('process')">PROCESS</button>
-    <button class="nav-tab" onclick="showPage('universe')">UNIVERSE</button>
-    <button class="nav-tab" onclick="showPage('watchlist')">WATCH FLAGS</button>
-    <button class="nav-tab" onclick="showPage('settings')">SETTINGS</button>
+    <button class="nav-tab active" onclick="showPage('digest', this)">DIGEST</button>
+    <button class="nav-tab" onclick="showPage('process', this)">PROCESS</button>
+    <button class="nav-tab" onclick="showPage('universe', this)">UNIVERSE</button>
+    <button class="nav-tab" onclick="showPage('watchlist', this)">WATCH FLAGS</button>
+    <button class="nav-tab" onclick="showPage('settings', this)">SETTINGS</button>
   </div>
   <div class="nav-right">
     <span class="nav-date" id="navDate"></span>
@@ -299,10 +300,17 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
 <div class="page" id="page-process">
   
   <!-- Article metadata -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:center;">
     <input id="articleTitle" placeholder="Article title" style="width:100%">
     <input id="articleAuthor" placeholder="Author / source" style="width:100%">
     <input id="articleDate" placeholder="Publication date e.g. 7 Jun 2026" style="width:100%">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap;font-size:12px;color:var(--text2);padding:9px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;">
+      <input type="checkbox" id="isPaidArticle" style="width:14px;height:14px;cursor:pointer;" checked>
+      PAID
+    </label>
+  </div>
+  <div id="lengthWarning" style="display:none;margin-bottom:12px;padding:10px 14px;background:#ff9d6b12;border:1px solid #ff9d6b44;border-radius:6px;font-size:12px;color:var(--orange);">
+    ⚠ Long article (~<span id="lengthTokens"></span> tokens) — estimated cost ~<span id="lengthCost"></span>p. Consider trimming or running quick screen only.
   </div>
 
   <div class="process-layout">
@@ -332,13 +340,17 @@ textarea { padding: 12px 14px; resize: vertical; line-height: 1.6; }
         <span style="font-size:11px;color:var(--text3)">or paste directly</span>
       </div>
 
-      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-primary" id="runBtn" onclick="runAgents()" disabled>
           RUN AGENT SQUAD
+        </button>
+        <button class="btn btn-ghost" id="quickScreenBtn" onclick="runQuickScreen()" disabled>
+          QUICK SCREEN
         </button>
         <span style="font-size:11px;color:var(--text3)" id="runEst"></span>
         <span style="font-size:11px;color:var(--text3)" id="runElapsed"></span>
       </div>
+      <div id="quickScreenResult" style="display:none;margin-top:12px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;"></div>
     </div>
 
     <!-- Right: Agent outputs -->
@@ -502,7 +514,14 @@ KEY KNOWN FACTS:
 - RMBS: Flagged INVESTIGATE_NOW — SOCAMM2 + HBM4E interface chips, content scales with sockets not bits.
 - ALAB/CRDO: Flagged INVESTIGATE — CXL/PCIe tier connection layer, grows regardless of memory tier winner.
 
-INVESTMENT STYLE: Aggressive 2-year growth horizon, concentrated high-conviction positions. Not a trader. Comfortable with small/mid cap volatility.`;
+EMERGING THEMES (no positions yet, monitoring for opportunities):
+- Space infrastructure — RKLB held, watching for broader constellation/launch plays
+- Humanoid robotics / Physical AI — Figure, 1X, Boston Dynamics adjacents, sensor supply chain
+- Sovereign AI / National compute — country-level AI infrastructure buildouts
+- Next AI architecture wave — whatever comes after transformers/inference scaling
+- Energy storage — grid-scale battery tech alongside AI power demand
+
+INVESTMENT STYLE: Aggressive 2-year growth horizon, concentrated high-conviction positions. Not a trader. Comfortable with small/mid cap volatility. Always looking for the next theme before it becomes consensus.`;
 
 // ═══════════════════════════════════════════════════════════════
 // AGENT DEFINITIONS
@@ -514,8 +533,8 @@ const getAgents = () => {
   return [
   { key: 'ticker', name: 'Ticker Spotter', color: '#6bf4ff', icon: '◈',
     prompt: `You are a Ticker Spotter agent. Today is ${today}.
-Extract ONLY companies/tickers that are explicitly mentioned in the article. Do NOT list tickers just because they are in the portfolio context below.
-Classify each as HELD, WATCHLIST, or NEW based on the portfolio.
+Extract ONLY companies/tickers explicitly mentioned in the article. Do NOT list tickers just because they are in the portfolio context.
+Classify each as HELD, WATCHLIST, or NEW. Keep context to 10 words max per ticker. Maximum 5 items per category.
 
 Portfolio:\n${portfolio}
 
@@ -528,8 +547,8 @@ Assess how this article affects the investor's existing investment theses. Only 
 
 Portfolio:\n${portfolio}
 
-Return ONLY valid JSON:
-{"overall_impact":"STRENGTHENS","themes_affected":[{"theme":"CPO/Photonics Stack","direction":"STRENGTHENS","held_positions_impacted":["LITE"],"evidence":"specific evidence from article","confidence":"HIGH"}],"summary":"plain english summary of thesis impact"}` },
+Return ONLY valid JSON — maximum 3 themes, keep evidence under 25 words each:
+{"overall_impact":"STRENGTHENS","themes_affected":[{"theme":"CPO/Photonics Stack","direction":"STRENGTHENS","held_positions_impacted":["LITE"],"evidence":"specific evidence","confidence":"HIGH"}],"summary":"2 sentence plain english summary"}` },
 
   { key: 'bull', name: 'Bull Agent', color: '#6bff9d', icon: '▲',
     prompt: `You are a Bull Case Agent. Today is ${today}.
@@ -537,26 +556,26 @@ Find the strongest bullish signals in this article. Be specific with numbers and
 
 Portfolio:\n${portfolio}
 
-Return ONLY valid JSON:
+Return ONLY valid JSON — maximum 4 signals, maximum 3 catalyst flags, keep all text under 30 words each:
 {"key_bull_narrative":"2-3 sentence takeaway","strongest_signals":[{"ticker":"LITE","signal":"specific bullish evidence","strength":"STRONG","timeframe":"near-term"}],"catalyst_flags":["specific upcoming catalysts mentioned in article"]}` },
 
   { key: 'bear', name: 'Bear Agent', color: '#ff6b6b', icon: '▼',
     prompt: `You are a Devil's Advocate Agent. Today is ${today}.
-Find every risk ruthlessly. Don't soften anything. Only reference dates explicitly stated in the article — never invent timeframes.
+Find risks in this article. Be ruthless but CONCISE. Max 4 risks, max 3 watch flags. Keep each risk under 20 words. Only reference dates explicitly in the article.
 
-Portfolio:\n${portfolio}
+Portfolio:\n${portfolio.substring(0, 800)}
 
 Return ONLY valid JSON:
-{"key_bear_narrative":"2-3 sentence concern","risks":[{"ticker":"LITE","risk":"specific risk","severity":"HIGH","timeframe":"long-term"}],"watch_flags":["specific things to monitor that would invalidate thesis"]}` },
+{"key_bear_narrative":"2 sentence concern","risks":[{"ticker":"LITE","risk":"specific risk under 20 words","severity":"HIGH","timeframe":"long-term"}],"watch_flags":["thing to monitor"]}` },
 
-  { key: 'newnames', name: 'New Names Scout', color: '#e8ff6b', icon: '🔭',
+    { key: 'newnames', name: 'New Names Scout', color: '#e8ff6b', icon: '🔭',
     prompt: `You are a New Names Scout. Today is ${today}.
 Identify companies NOT currently in the portfolio or watchlist that are mentioned in the article and deserve attention.
 
 Portfolio:\n${portfolio}
 
-Return ONLY valid JSON:
-{"scout_summary":"plain english overview","new_names":[{"ticker":"TSEM","name":"Tower Semiconductor","verdict":"INVESTIGATE","thesis_fit":"why it fits the themes","opportunity":"the specific opportunity","key_risk":"main risk"}]}` },
+Return ONLY valid JSON — maximum 5 new names, keep all text under 25 words each:
+{"scout_summary":"brief overview","new_names":[{"ticker":"TSEM","name":"Tower Semiconductor","verdict":"INVESTIGATE","thesis_fit":"why it fits","opportunity":"specific opportunity","key_risk":"main risk"}]}` },
 
   { key: 'watchflags', name: 'Watch Flag Agent', color: '#ff9d6b', icon: '◉',
     prompt: `You are a Watch Flag Agent. Today is ${today}.
@@ -570,8 +589,8 @@ CRITICAL RULES:
 
 Portfolio:\n${portfolio}
 
-Return ONLY valid JSON:
-{"summary":"overview of key watch items","watch_flags":[{"item":"specific thing to watch","due":"date from article or ongoing","ticker":"MU","priority":"HIGH","why":"why this matters to the thesis"}]}` }
+Return ONLY valid JSON — maximum 6 watch flags, keep all text under 25 words each:
+{"summary":"brief overview","watch_flags":[{"item":"specific thing to watch","due":"date from article or ongoing","ticker":"MU","priority":"HIGH","why":"why this matters"}]}` }
   ];
 };
 
@@ -617,11 +636,11 @@ function saveSettings() {
 // ═══════════════════════════════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════════════════════════════
-function showPage(name) {
+function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
-  event.target.classList.add('active');
+  if (el) el.classList.add('active');
   if (name === 'universe') loadUniverse();
   if (name === 'watchlist') loadWatchFlags();
   if (name === 'digest') loadDigest();
@@ -711,22 +730,40 @@ function onTextChange() {
   const stats = document.getElementById('articleStats');
   const est = document.getElementById('runEst');
   const btn = document.getElementById('runBtn');
+  const warning = document.getElementById('lengthWarning');
   
   if (text) {
     dz.classList.add('has-content');
     hint.style.display = 'none';
     footer.style.display = 'flex';
-    stats.textContent = `${text.length.toLocaleString()} chars`;
-    est.textContent = `~${(Math.ceil(text.length / 4000 * 7 * 0.15 * 10) / 10).toFixed(1)}p est.`;
+    const chars = text.length;
+    const tokens = Math.round(chars / 4);
+    const costPence = ((tokens / 1000) * 0.3 * 7).toFixed(1);
+    const cost = costPence;
+    stats.textContent = chars.toLocaleString() + ' chars';
+    est.textContent = '~' + cost + 'p est.';
+    
+    // Length warning above 30k chars
+    if (chars > 30000) {
+      document.getElementById('lengthTokens').textContent = tokens.toLocaleString();
+      document.getElementById('lengthCost').textContent = cost;
+      warning.style.display = 'block';
+    } else {
+      warning.style.display = 'none';
+    }
   } else {
     dz.classList.remove('has-content');
     hint.style.display = 'flex';
     footer.style.display = 'none';
     est.textContent = '';
+    warning.style.display = 'none';
   }
   
   const hasKey = localStorage.getItem('signal_api_key');
-  btn.disabled = !text.trim() || !hasKey || Object.values(agentLoading).some(Boolean);
+  const isRunning = Object.values(agentLoading).some(Boolean);
+  btn.disabled = !text.trim() || !hasKey || isRunning;
+  const qsBtn = document.getElementById('quickScreenBtn');
+  if (qsBtn) qsBtn.disabled = !text.trim() || !hasKey || isRunning;
 }
 
 function clearArticle() {
@@ -747,21 +784,54 @@ function clearArticle() {
 // AGENT CALL
 // ═══════════════════════════════════════════════════════════════
 async function callAgent(agent, text, apiKey) {
-  const res = await fetch(`${RAILWAY_URL}/proxy`, {
+  const today = new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  const reqBody = {
+    apiKey,
+    model: 'claude-sonnet-4-5',
+    max_tokens: 8000,
+    system: agent.prompt,
+    messages: [{ role: 'user', content: 'Analyse this article. Today is ' + today + '.\n\n' + text }]
+  };
+
+  // Add web search tool for Bear Agent
+  if (agent.useWebSearch) {
+    reqBody.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+  }
+
+  const res = await fetch(RAILWAY_URL + '/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      apiKey,
-      model: 'claude-sonnet-4-5',
-      max_tokens: 4000,
-      system: agent.prompt,
-      messages: [{ role: 'user', content: `Analyse this article. Today is ${new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'})}.\n\n${text}` }]
-    })
+    body: JSON.stringify(reqBody)
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
-  const rawText = data.content?.[0]?.text || '{}';
-  return JSON.parse(rawText.replace(/```json|```/g, '').trim());
+
+  // Extract text from content blocks (may include tool_use blocks from web search)
+  const blocks = data.content || [];
+  const textBlock = blocks.find(b => b.type === 'text');
+  const rawText = textBlock ? textBlock.text : '{}';
+
+  try {
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch(e) {
+    // Try to salvage truncated JSON by finding last complete object
+    try {
+      const cleaned = rawText.replace(/```json|```/g, '').trim();
+      // Find the last valid closing brace
+      let truncated = cleaned;
+      while (truncated.length > 10) {
+        try {
+          return JSON.parse(truncated);
+        } catch(_) {
+          truncated = truncated.substring(0, truncated.lastIndexOf(','));
+          if (truncated.endsWith('{') || truncated.length < 10) break;
+        }
+      }
+    } catch(_) {}
+    // Last resort - return what we can extract
+    return { error: 'Output truncated — article may be too long. Try trimming.', partial: rawText.substring(0, 200) };
+  }
 }
 
 function buildOrchestratorPrompt(results, articleText) {
@@ -817,6 +887,66 @@ AGENT OUTPUTS:\n`;
 // ═══════════════════════════════════════════════════════════════
 // RUN AGENTS
 // ═══════════════════════════════════════════════════════════════
+async function runQuickScreen() {
+  const text = document.getElementById('articleText').value.trim();
+  const apiKey = localStorage.getItem('signal_api_key');
+  if (!text || !apiKey) return;
+
+  const portfolio = localStorage.getItem('signal_portfolio') || DEFAULT_PORTFOLIO;
+  const today = new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  const btn = document.getElementById('quickScreenBtn');
+  const resultDiv = document.getElementById('quickScreenResult');
+
+  btn.disabled = true;
+  btn.textContent = 'SCREENING...';
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<span style="color:var(--text3);font-size:12px;font-family:monospace">screening article...</span>';
+
+  const systemPrompt = 'You are a quick relevance screener. Today is ' + today + '. Return ONLY valid JSON: {"relevance_score":7,"summary":"one sentence","key_tickers":["LITE"],"themes_matched":["CPO"],"recommendation":"FULL_SQUAD","reason":"why"}. Score 7+ = FULL_SQUAD, 4-6 = SAVE_SUMMARY, below 4 = IGNORE. Portfolio: ' + portfolio.substring(0, 1000);
+
+  try {
+    const res = await fetch(RAILWAY_URL + '/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: apiKey,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: 'Screen this article:\n\n' + text.substring(0, 8000) }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const blocks = data.content || [];
+    const textBlock = blocks.find(function(b) { return b.type === 'text'; });
+    const rawText = textBlock ? textBlock.text : '{}';
+    const result = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+
+    const recColors = { FULL_SQUAD: 'var(--green)', SAVE_SUMMARY: 'var(--accent)', IGNORE: 'var(--text3)' };
+    const rc = recColors[result.recommendation] || 'var(--text2)';
+    const tickerTags = (result.key_tickers || []).map(function(t) { return '<span class="tag tag-blue">' + escHtml(t) + '</span>'; }).join('');
+    const themeTags = (result.themes_matched || []).map(function(t) { return '<span class="tag tag-gray">' + escHtml(t) + '</span>'; }).join('');
+    const fullSquadBtn = result.recommendation === 'FULL_SQUAD' ? '<div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="runAgents()">Run Full Squad</button></div>' : '';
+
+    resultDiv.innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">'
+      + '<span style="font-size:22px;font-weight:700;color:' + rc + ';font-family:monospace">' + (result.relevance_score || '?') + '/10</span>'
+      + '<span class="tag" style="color:' + rc + ';background:' + rc + '18;border:1px solid ' + rc + '44">' + escHtml(result.recommendation || '') + '</span>'
+      + '<span style="font-size:12px;color:var(--text3)">' + escHtml(result.reason || '') + '</span>'
+      + '</div>'
+      + '<div style="font-size:13px;color:var(--text2);margin-bottom:8px">' + escHtml(result.summary || '') + '</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tickerTags + themeTags + '</div>'
+      + fullSquadBtn;
+
+  } catch(e) {
+    resultDiv.innerHTML = '<span style="color:var(--red);font-size:12px">Error: ' + escHtml(e.message) + '</span>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'QUICK SCREEN';
+}
+
 async function runAgents() {
   const text = document.getElementById('articleText').value.trim();
   const apiKey = localStorage.getItem('signal_api_key');
@@ -1014,7 +1144,14 @@ function renderOrchestrator(r) {
   }
   
   h += `</div>`;
-  
+
+  // Research Bear Case button
+  h += '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;">';
+  h += '<button onclick="runBearResearch()" id="bearResearchBtn" style="background:transparent;border:1px solid #ff6b6b44;color:var(--red);padding:7px 16px;border-radius:6px;cursor:pointer;font-size:11px;font-family:monospace;letter-spacing:1px;">▼ RESEARCH BEAR CASE</button>';
+  h += '<span style="font-size:11px;color:var(--text3)">Searches financial sources for contradicting evidence</span>';
+  h += '</div>';
+  h += '<div id="bearResearchResult" style="display:none;margin-top:12px;"></div>';
+
   document.getElementById('orchCard').innerHTML = h;
   document.getElementById('orchOutput').style.display = 'block';
 }
@@ -1022,6 +1159,95 @@ function renderOrchestrator(r) {
 // ═══════════════════════════════════════════════════════════════
 // SAVE TO SUPABASE
 // ═══════════════════════════════════════════════════════════════
+async function runBearResearch() {
+  const apiKey = localStorage.getItem('signal_api_key');
+  const articleText = document.getElementById('articleText').value.trim();
+  if (!apiKey || !articleText) return;
+
+  const btn = document.getElementById('bearResearchBtn');
+  const resultDiv = document.getElementById('bearResearchResult');
+  const portfolio = localStorage.getItem('signal_portfolio') || DEFAULT_PORTFOLIO;
+  const today = new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+
+  btn.disabled = true;
+  btn.textContent = '▼ RESEARCHING...';
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:monospace;padding:12px;">Searching Yahoo Finance, Seeking Alpha, Reuters for contradicting evidence...</div>';
+
+  // Build bear research prompt using orchestrator output as context
+  const orchOutput = agentResults.orchestrator;
+  const bullPoints = orchOutput && orchOutput.key_positions_affected
+    ? orchOutput.key_positions_affected.filter(p => p.action === 'ADD_ON_WEAKNESS' || p.conviction_change === 'INCREASES').map(p => p.ticker + ': ' + p.plain_english).join('; ')
+    : 'key bullish claims from article';
+
+  const systemPrompt = 'You are an adversarial investment researcher. Today is ' + today + '. Your job is to find evidence that contradicts bullish investment theses. Search Yahoo Finance, Seeking Alpha, Reuters, Bloomberg, and financial news sources specifically. Look for: analyst downgrades, earnings misses, competitive threats, timeline delays, technical problems, and bearish commentary. Be specific and cite sources. Return ONLY valid JSON: {"external_bear_cases":[{"ticker":"LITE","risk":"specific risk found","source":"Yahoo Finance","severity":"HIGH","url_hint":"search term used"}],"key_finding":"most important contradicting evidence in 2 sentences","search_queries_used":["list of searches performed"]}';
+
+  const userMsg = 'Find contradicting evidence for these bullish claims: ' + bullPoints + ' Article context: ' + articleText.substring(0, 5000) + ' Portfolio: ' + portfolio.substring(0, 500);
+
+  try {
+    const res = await fetch(RAILWAY_URL + '/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: apiKey,
+        model: 'claude-sonnet-4-5',
+        max_tokens: 4000,
+        system: systemPrompt,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const blocks = data.content || [];
+    const textBlock = blocks.find(function(b) { return b.type === 'text'; });
+    const rawText = textBlock ? textBlock.text : '{}';
+
+    let result;
+    try {
+      result = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+    } catch(e) {
+      result = { key_finding: rawText.substring(0, 500), external_bear_cases: [] };
+    }
+
+    let html = '<div style="background:var(--bg3);border:1px solid var(--red)33;border-radius:8px;padding:16px;">';
+    html += '<div style="font-size:10px;color:var(--red);font-family:monospace;letter-spacing:2px;margin-bottom:10px;">▼ EXTERNAL BEAR RESEARCH</div>';
+
+    if (result.key_finding) {
+      html += '<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px;padding:10px;background:var(--bg2);border-radius:6px;">' + escHtml(result.key_finding) + '</div>';
+    }
+
+    if (result.external_bear_cases && result.external_bear_cases.length) {
+      result.external_bear_cases.forEach(function(c) {
+        const sc = c.severity === 'HIGH' ? 'var(--red)' : c.severity === 'MEDIUM' ? 'var(--accent)' : 'var(--blue)';
+        html += '<div style="border-left:3px solid ' + sc + '44;padding:10px 12px;margin-bottom:8px;background:var(--bg2);border-radius:0 6px 6px 0;">';
+        html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:5px;">';
+        html += '<span style="font-family:monospace;font-size:13px;font-weight:700;color:' + sc + '">' + escHtml(c.ticker || '') + '</span>';
+        html += '<span class="tag" style="color:' + sc + ';background:' + sc + '18;border:1px solid ' + sc + '44">' + escHtml(c.severity || '') + '</span>';
+        html += '<span style="font-size:10px;color:var(--text3);margin-left:auto">' + escHtml(c.source || '') + '</span>';
+        html += '</div>';
+        html += '<div style="font-size:12px;color:var(--text3);line-height:1.5">' + escHtml(c.risk || '') + '</div>';
+        html += '</div>';
+      });
+    }
+
+    if (result.search_queries_used && result.search_queries_used.length) {
+      html += '<div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:monospace;">Searched: ' + result.search_queries_used.map(function(q) { return escHtml(q); }).join(' · ') + '</div>';
+    }
+
+    html += '</div>';
+    resultDiv.innerHTML = html;
+
+  } catch(e) {
+    resultDiv.innerHTML = '<div style="color:var(--red);font-size:12px;padding:10px;">Error: ' + escHtml(e.message) + '</div>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▼ RESEARCH BEAR CASE';
+}
+
 async function saveToSupabase() {
   const title = document.getElementById('articleTitle').value;
   const author = document.getElementById('articleAuthor').value;
